@@ -1,0 +1,6 @@
+{
+  "interval_minutes": 30,
+  "break_minutes": 7,
+  "hotkey": "ctrl+alt+B",
+  "autostart": True,
+}
