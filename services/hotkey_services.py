@@ -2,15 +2,23 @@ import keyboard
 
 
 class HotkeyService:
+
     def __init__(self):
-        self.current_hotkey = None
+        self.hotkey_handle = None
 
-    def register(self,hotkey,callback):
-        self.unrigister()
+    def register(self, hotkey, callback):
+        self.unregister()
 
-        keyboard.add_hotkey(hotkey,callback)
+        self.hotkey_handle = keyboard.add_hotkey(
+            hotkey,
+            callback
+        )
 
-        self.current_hotkey = hotkey
+    def unregister(self):
+        if self.hotkey_handle:
+            try:
+                keyboard.remove_hotkey(self.hotkey_handle)
+            except KeyError:
+                pass
 
-    def unrigester(self):
-        keyboard.clear_all_hotkeys()
+            self.hotkey_handle = None

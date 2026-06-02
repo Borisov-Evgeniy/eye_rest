@@ -17,7 +17,7 @@ class Sheduler:
         if self.job_id:
             self.root.after_cancel(self.job_id)
 
-    def (self):
+    def _sheduler_next(self):
         if not self.running:
             return
         self.job_id = self.root.after(int(self.interval_ms), self._run)
