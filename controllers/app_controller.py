@@ -16,9 +16,9 @@ class AppController:
         self.main_window.root.after(0,self.main_window.root.withdraw,)
 
     def exit(self, *args):
-        if self.main_window.sheduler:
-            self.main_window.sheduler.stop()
-
+        if self.main_window.sсheduler:
+            self.main_window.sсheduler.stop()
+        self.main_window.hotkeys.unregister()
         self.tray.stop()
         self.main_window.root.after(0,self.main_window.root.destroy,)
 
