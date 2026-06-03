@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw
 def create_image():
     image = Image.new("RGB", (64, 64), "white")
     draw = ImageDraw.Draw(image)
-    draw.ellipse((10, 10, 54, 54), fill="black")
+    draw.ellipse((10, 10, 54, 54), fill="red")
     return image
 
 class TrayService:
@@ -14,20 +14,17 @@ class TrayService:
         self.on_exit = on_exit
         self.icon = None
 
+    def _run_icon(self):
+        self.icon.run()
+
     def start(self):
-        menu = pystray.Menu(
-            pystray.MenuItem("Открыть", lambda icon, item: self.on_show()),
-            pystray.MenuItem("Выход", lambda icon, item: self.on_exit()),
-        )
+        menu = pystray.Menu(pystray.MenuItem("Открыть",lambda icon,
+                                                              item: self.on_show(),default=True,),
+                            pystray.MenuItem("Выход",lambda icon, item: self.on_exit(),),)
 
-        self.icon = pystray.Icon(
-            "eye_rest",
-            create_image(),
-            "Eye Rest",
-            menu,
-            default_action=self.on_show )
+        self.icon = pystray.Icon("eye_rest",create_image(),"Eye Rest",menu=menu,)
 
-        threading.Thread(target=self.icon.run, daemon=True).start()
+        threading.Thread(target=self._run_icon,daemon=True,).start()
 
     def stop(self):
         if self.icon:
