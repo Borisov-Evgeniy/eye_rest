@@ -5,7 +5,7 @@ from models.settings import Settings
 from services.hotkey_services import HotkeyService
 from services.service_settings import SettingsService
 from ui.break_window import BreakWindow
-
+from core.state import AppState
 
 class MainWindow:
     def __init__(self):
@@ -18,6 +18,7 @@ class MainWindow:
         self.hotkeys = HotkeyService()
         self.build()
         self.setup_window_events()
+        self.state = AppState.WORKING
 
     def setup_window_events(self):
         self.root.protocol("WM_DELETE_WINDOW",self.hide_window,)
@@ -78,9 +79,10 @@ class MainWindow:
         self.hotkeys.register(self.settings.hotkey, self.close_break,)
 
     def show_break(self):
-        if self.break_window:
+        if self.state != AppState.WORKING:
             return
 
+        self.state = AppState.BREAK
         self.break_window = BreakWindow(parent=self.root,
                                         break_minutes=self.settings.break_time,
                                         on_finish=self.break_finished,)
@@ -93,6 +95,7 @@ class MainWindow:
 
     def break_finished(self):
         self.break_window = None
+        self.state = AppState.WORKING
         self.sheduler.break_finished()
 
     def run(self):
