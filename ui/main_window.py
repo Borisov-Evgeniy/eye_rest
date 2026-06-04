@@ -67,6 +67,9 @@ class MainWindow:
 
         tk.Button(self.root, text="Стоп", command=self.stop, bg="#f8d7da", ).pack(pady=5)
 
+        self.pause_button = tk.Button(self.root,text="Пауза",command=self.pause_resume,)
+        self.pause_button.pack()
+
     def save(self):
         self.settings = Settings(
             interval_minutes=int(self.interval_entry.get()),
@@ -99,6 +102,9 @@ class MainWindow:
             self.sсheduler.stop()
             self.sсheduler = None
 
+        self.pause_button.config(text="Пауза")
+        self.status_label.config(text="Таймер остановлен")
+
         self.countdown_active = False
         self.countdown_label.config(text="До перерыва: --:--")
         self.status_label.config(text="Таймер остановлен")
@@ -119,6 +125,7 @@ class MainWindow:
         if self.state != AppState.WORKING:
             return
 
+        self.pause_button.config(state="disabled")
         self.state = AppState.BREAK
         self.break_window = BreakWindow(parent=self.root,
                                         break_minutes=self.settings.break_time,
@@ -131,12 +138,28 @@ class MainWindow:
         self.break_window.force_close()
 
     def break_finished(self):
+        self.pause_button.config(state="normal")
         self.break_window = None
+
         self.state = AppState.WORKING
         self.next_break_seconds = (self.settings.interval_minutes * 60)
         self.countdown_active = True
+
         self.update_countdown()
         self.sсheduler.break_finished()
+
+    def pause_resume(self):
+        if not self.sсheduler:
+            return
+
+        if self.sсheduler.paused:
+            self.sсheduler.resume()
+            self.pause_button.config(text="Пауза")
+            self.status_label.config(text="Таймер запущен")
+        else:
+            self.sсheduler.pause()
+            self.pause_button.config(text="Продолжить")
+            self.status_label.config(text="Пауза")
 
     def run(self):
         self.root.mainloop()

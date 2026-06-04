@@ -11,6 +11,8 @@ class Scheduler:
         self.job_id = None
         self.running = False
         self.next_break_time = None
+        self.paused = False
+        self.remaining_seconds = 0
 
     def start(self):
         self.running = True
@@ -22,6 +24,26 @@ class Scheduler:
 
         if self.job_id:
             self.root.after_cancel(self.job_id)
+
+    def pause(self):
+        if not self.running or self.paused:
+            return
+
+        self.remaining_seconds = self.get_remaining_seconds()
+
+        if self.job_id is not None:
+            self.root.after_cancel(self.job_id)
+
+        self.paused = True
+
+    def resume(self):
+        if not self.paused:
+            return
+
+        self.paused = False
+        self.next_break_time = (datetime.now()+ timedelta(seconds=self.remaining_seconds))
+        self.job_id = self.root.after(self.remaining_seconds * 1000,self._run)
+
 
     def _scheduler_next(self):
         if not self.running:
@@ -40,6 +62,9 @@ class Scheduler:
     def get_remaining_seconds(self):
         if not self.running or self.next_break_time is None:
             return 0
+
+        if self.paused:
+            return self.remaining_seconds
 
         delta = self.next_break_time - datetime.now()
 
