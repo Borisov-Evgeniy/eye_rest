@@ -1,5 +1,8 @@
+import sys
 import traceback
 from pathlib import Path
+from utils.single_instance import SingleInstance
+
 
 BASE_DIR = Path(__file__).resolve().parent
 LOG_FILE = BASE_DIR / "startup_log.txt"
@@ -13,7 +16,9 @@ def main():
     log("=" * 50)
     log("STARTUP BEGIN")
     log("=" * 50)
-
+    instance = SingleInstance("EyeRestMutex")
+    if not instance.acquire():
+        sys.exit()
     try:
         log("Step 1: import AppController")
         from controllers.app_controller import AppController
