@@ -1,11 +1,11 @@
 import sys
 import traceback
 from pathlib import Path
-from utils.single_instance import SingleInstance
-
+from core.single_instance import SingleInstance
 
 BASE_DIR = Path(__file__).resolve().parent
 LOG_FILE = BASE_DIR / "startup_log.txt"
+
 
 def log(msg: str):
     print(msg)
@@ -18,6 +18,7 @@ def main():
     log("=" * 50)
     instance = SingleInstance("EyeRestMutex")
     if not instance.acquire():
+        log("Another instance is already running. Exiting.")
         sys.exit()
     try:
         log("Step 1: import AppController")

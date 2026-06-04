@@ -1,5 +1,5 @@
 import tkinter as tk
-from datetime import datetime, timedelta
+
 
 class BreakWindow(tk.Toplevel):
 
@@ -9,7 +9,6 @@ class BreakWindow(tk.Toplevel):
         self.seconds = break_minutes * 60
         self.on_finish = on_finish
         self.title("Перерыв")
-        self.attributes("-topmost", True)
         self.protocol("WM_DELETE_WINDOW", self.disable_close)
         self.attributes("-topmost", True)
         self.grab_set()

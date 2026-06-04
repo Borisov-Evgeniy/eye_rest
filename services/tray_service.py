@@ -18,13 +18,12 @@ class TrayService:
         self.icon.run()
 
     def start(self):
-        menu = pystray.Menu(pystray.MenuItem("Открыть",lambda icon,
-                                                              item: self.on_show(),default=True,),
-                            pystray.MenuItem("Выход",lambda icon, item: self.on_exit(),),)
+        menu = pystray.Menu(
+            pystray.MenuItem("Открыть", lambda icon, item: self.on_show(), default=True),
+            pystray.MenuItem("Выход", lambda icon, item: self.on_exit()))
 
-        self.icon = pystray.Icon("eye_rest",create_image(),"Eye Rest",menu=menu,)
-
-        threading.Thread(target=self._run_icon,daemon=True,).start()
+        self.icon = pystray.Icon("eye_rest", create_image(), "Eye Rest", menu=menu)
+        threading.Thread(target=self._run_icon, daemon=True).start()
 
     def stop(self):
         if self.icon:

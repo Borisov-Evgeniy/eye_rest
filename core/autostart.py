@@ -18,10 +18,10 @@ class AutoStart():
         exe_path = sys.executable
 
         with winreg.OpenKey(
-                winreg.HKEY_LOCAL_MACHINE,
+                winreg.HKEY_CURRENT_USER,
                 cls.REG_PATH,
                 0,
-                winreg.KEY_ALL_ACCESS,
+                winreg.KEY_SET_VALUE,
         ) as key:
             winreg.SetValueEx(
                     key,
@@ -52,12 +52,8 @@ class AutoStart():
         try:
             with winreg.OpenKey(
                 winreg.HKEY_CURRENT_USER,
-                cls.REG_PATH,
-            ) as key:
-                winreg.SetValueEx(
-                    key,
-                    APP_NAME,
-                )
+                cls.REG_PATH,) as key:
+                winreg.QueryValueEx(key,APP_NAME,)
             return True
         except FileNotFoundError:
             return False

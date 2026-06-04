@@ -3,24 +3,19 @@ from ui.main_window import MainWindow
 
 
 class AppController:
+
     def __init__(self):
         self.main_window = MainWindow()
 
-        self.tray = TrayService(on_show=self.show_window,
-                                on_exit=self.exit,)
-
-    def show_window(self, *args):
-        self.main_window.root.after(0,self.main_window.show_window,)
-
-    def hide_window(self):
-        self.main_window.root.after(0,self.main_window.root.withdraw,)
+        self.tray = TrayService(
+            on_show=self.main_window.show_window,
+            on_exit=self.exit
+        )
 
     def exit(self, *args):
-        if self.main_window.sсheduler:
-            self.main_window.sсheduler.stop()
-        self.main_window.hotkeys.unregister()
+        self.main_window.stop()
         self.tray.stop()
-        self.main_window.root.after(0,self.main_window.root.destroy,)
+        self.main_window.root.destroy()
 
     def run(self):
         self.tray.start()
