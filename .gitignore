@@ -5,6 +5,8 @@ build/
 dist/
 wheels/
 *.egg-info
-
+debug.log
+startup_log.txt
+dist_installer
 # Virtual environments
 .venv
