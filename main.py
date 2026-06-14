@@ -3,6 +3,7 @@ import traceback
 from pathlib import Path
 from core.single_instance import SingleInstance
 
+
 BASE_DIR = Path(__file__).resolve().parent
 LOG_FILE = BASE_DIR / "startup_log.txt"
 
@@ -21,14 +22,28 @@ def main():
         log("Another instance is already running. Exiting.")
         sys.exit()
     try:
-        log("Step 1: import AppController")
+        log("Step 1: Creating QApplication")
+        from PySide6.QtWidgets import QApplication
+        from PySide6.QtGui import QFont
+
+        app = QApplication(sys.argv)
+
+        font = QFont("Inter", 10)
+        if not font.exactMatch():
+            font = QFont("Segoe UI", 10)
+
+        app.setFont(font)
+
+        log("Step 2: import AppController")
         from controllers.app_controller import AppController
         log("OK")
-        log("Step 2: create AppController")
-        app = AppController()
+
+        log("Step 3: create AppController")
+        controller = AppController()
         log("OK")
-        log("Step 3: run app")
-        app.run()
+
+        log("Step 4: run app")
+        controller.run()
         log("App exited normally")
 
     except Exception as e:

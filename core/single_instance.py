@@ -1,6 +1,4 @@
 import sys
-import os
-import fcntl
 import ctypes
 from ctypes import wintypes
 from pathlib import Path
@@ -9,7 +7,6 @@ from pathlib import Path
 class SingleInstance:
     def __init__(self, name: str = "EyeRest"):
         self.name = name
-
         self.lock_file = None
         self.lock_fd = None
 
@@ -43,6 +40,9 @@ class SingleInstance:
         return True
 
     def _acquire_unix(self):
+        import os
+        import fcntl
+
         lock_dir = Path.home() / ".cache" / "eye_rest"
         lock_dir.mkdir(parents=True, exist_ok=True)
         self.lock_file = lock_dir / "lock"
@@ -53,7 +53,7 @@ class SingleInstance:
             self.lock_fd.write(str(os.getpid()))
             self.lock_fd.flush()
             return True
-        except(IOError,OSError):
+        except (IOError, OSError):
             if self.lock_fd:
                 self.lock_fd.close()
             return False
@@ -63,13 +63,17 @@ class SingleInstance:
             if self.lock_file:
                 self._kernel32.CloseHandle(self.lock_file)
                 self.lock_file = None
-            else:
-                if self.lock_fd:
-                    try:
-                        fcntl.flock(self.lock_fd.fileno(), fcntl.LOCK_UN)
-                        self.lock_fd.close()
+        else:
+            # ИСПРАВЛЕНИЕ: Импортируем fcntl здесь на случай, если метод вызван в Linux
+            import fcntl
 
-                        if self.lock_fd and self.lock_file.exists():
-                            self.lock_file.unlink()
-                    except:
-                        pass
+            if self.lock_fd:
+                try:
+                    fcntl.flock(self.lock_fd.fileno(), fcntl.LOCK_UN)
+                    self.lock_fd.close()
+                    self.lock_fd = None
+
+                    if self.lock_file and self.lock_file.exists():
+                        self.lock_file.unlink()
+                except Exception:
+                    pass

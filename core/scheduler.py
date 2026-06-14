@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from PySide6 import QTimer, QObject
+from PySide6.QtCore import QTimer, QObject
 
 
 class Scheduler(QObject):
@@ -65,7 +65,7 @@ class Scheduler(QObject):
 
         self.on_break()
 
-    def _start_countdow(self):
+    def _start_countdown(self):
         self.countdown_timer.start(1000)
         self._update_countdown()
 

@@ -1,6 +1,5 @@
 import sys
 from pathlib import Path
-import winreg
 from core.config import APP_NAME
 
 
@@ -25,7 +24,7 @@ class AutoStart():
 
     def is_enabled(cls):
         if sys.platform == "win32":
-            return cls._is_enabled_winodws()
+            return cls._is_enabled_windows()
         else:
             return cls._is_enabled_linux()
 
@@ -58,7 +57,7 @@ class AutoStart():
             pass
 
     @classmethod
-    def is_enabled_windows(cls) -> bool:
+    def _is_enabled_windows(cls) -> bool:
         try:
             with cls.winreg.OpenKey(
                 cls.winreg.HKEY_CURRENT_USER,
@@ -98,6 +97,7 @@ class AutoStart():
         if desktop_file.exists():
             desktop_file.unlink()
 
-    def is_enabled_linux(cls) -> bool:
+    @classmethod
+    def _is_enabled_linux(cls) -> bool:
         desktop_file = Path.home() / ".config" / "autostart" / "eye-rest.desktop"
         return desktop_file.exists()
