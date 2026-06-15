@@ -1,14 +1,15 @@
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton, QLineEdit, QFrame, QMessageBox
+    QLabel, QPushButton, QLineEdit, QFrame, QMessageBox, QCheckBox
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont
 
 from core.scheduler import Scheduler
 from core.app_state import AppState
 from services.hotkey_services import HotkeyService
 from services.service_settings import SettingsService
+from core.autostart import AutoStart
 from ui.break_window import BreakWindow
 
 
@@ -28,8 +29,25 @@ class MainWindow(QMainWindow):
         self.hotkeys = HotkeyService()
         self.state = AppState.STOPPED
 
+        self._drag_pos = None
+
         self._build_ui()
         self._apply_styles()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() == Qt.MouseButton.LeftButton and self._drag_pos is not None:
+            self.move(event.globalPosition().toPoint() - self._drag_pos)
+            event.accept()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_pos = None
+            event.accept()
 
     def _build_ui(self):
         central_widget = QWidget()
@@ -94,6 +112,10 @@ class MainWindow(QMainWindow):
         self.hotkey_entry.setObjectName("inputField")
         self.hotkey_entry.setText(self.settings.hotkey)
 
+        self.autostart_checkbox = QCheckBox("Запускать при старте системы")
+        self.autostart_checkbox.setObjectName("web3Checkbox")
+        self.autostart_checkbox.setChecked(AutoStart.is_enabled())
+
         save_btn = QPushButton("💾 Сохранить настройки")
         save_btn.setObjectName("saveButton")
         save_btn.clicked.connect(self.save_settings)
@@ -104,6 +126,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.break_entry)
         layout.addWidget(label3)
         layout.addWidget(self.hotkey_entry)
+        layout.addWidget(self.autostart_checkbox)
         layout.addWidget(save_btn)
 
         return card
@@ -185,8 +208,27 @@ class MainWindow(QMainWindow):
                 border-radius: 8px;
                 padding: 10px;
                 font-size: 14px;
+                min-height: 14px;
             }
             QLineEdit#inputField:focus {
+                border: 1px solid #8B5CF6;
+            }
+            QCheckBox#web3Checkbox {
+                color: #CBD5E1;
+                font-size: 13px;
+                font-weight: 500;
+                spacing: 8px;
+                margin-top: 2px;
+            }
+            QCheckBox#web3Checkbox::indicator {
+                width: 18px;
+                height: 18px;
+                border-radius: 4px;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                background-color: rgba(15, 23, 42, 0.8);
+            }
+            QCheckBox#web3Checkbox::indicator:checked {
+                background-color: #8B5CF6;
                 border: 1px solid #8B5CF6;
             }
             QPushButton#saveButton {
@@ -194,10 +236,11 @@ class MainWindow(QMainWindow):
                 color: white;
                 border: none;
                 border-radius: 8px;
-                padding: 10px;
-                font-size: 13px;
+                padding: 12px;
+                font-size: 14px;
                 font-weight: 600;
                 margin-top: 8px;
+                min-height: 20px;
             }
             QPushButton#saveButton:hover {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #60A5FA, stop:1 #A78BFA);
@@ -296,11 +339,13 @@ class MainWindow(QMainWindow):
                 self.scheduler.start()
             else:
                 self.scheduler.resume()
+
             self.hotkeys.register(self.settings.hotkey, self.close_break)
 
         elif state == AppState.PAUSED:
             if self.scheduler:
                 self.scheduler.pause()
+            self.hotkeys.unregister()
 
         elif state == AppState.STOPPED:
             if self.scheduler:
@@ -310,7 +355,7 @@ class MainWindow(QMainWindow):
             self.hotkeys.unregister()
 
         elif state == AppState.BREAK:
-            pass
+            self.hotkeys.register(self.settings.hotkey, self.close_break)
 
         self.render_state()
 
@@ -330,6 +375,42 @@ class MainWindow(QMainWindow):
             self.status_label.setText("ПЕРЕРЫВ")
             self.status_label.setStyleSheet("color: #8B5CF6;")
 
+    def show_break(self):
+        if self.state != AppState.RUNNING:
+            return
+
+        self.set_state(AppState.BREAK)
+
+        self.break_window = BreakWindow(
+            parent=self,
+            break_minutes=self.settings.break_time,
+            on_finish=self.break_finished,
+            hotkey_hint=self.settings.hotkey
+        )
+        self.break_window.show()
+
+    def break_finished(self):
+        if self.break_window:
+            self.break_window = None
+
+        if self.scheduler:
+            self.scheduler.stop()
+            self.scheduler = None
+
+        self.scheduler = Scheduler(
+            interval_minutes=self.settings.interval_minutes,
+            on_break=self.show_break,
+            on_countdown_update=self.update_countdown
+        )
+        self.scheduler.start()
+
+        self.set_state(AppState.RUNNING)
+
+    def close_break(self):
+        """Вызывается по хоткею"""
+        if self.break_window and not self.break_window._is_closing:
+            self.break_window.force_close()
+
     def start(self):
         self.set_state(AppState.RUNNING)
 
@@ -342,25 +423,6 @@ class MainWindow(QMainWindow):
         else:
             self.set_state(AppState.PAUSED)
 
-    def show_break(self):
-        if self.state != AppState.RUNNING:
-            return
-        self.set_state(AppState.BREAK)
-        self.break_window = BreakWindow(
-            parent=self,
-            break_minutes=self.settings.break_time,
-            on_finish=self.break_finished
-        )
-        self.break_window.show()
-
-    def break_finished(self):
-        self.break_window = None
-        self.set_state(AppState.RUNNING)
-
-    def close_break(self):
-        if self.break_window:
-            self.break_window.force_close()
-
     def save_settings(self):
         try:
             self.settings.interval_minutes = int(self.interval_entry.text())
@@ -368,6 +430,11 @@ class MainWindow(QMainWindow):
             self.settings.hotkey = self.hotkey_entry.text().strip()
 
             SettingsService.save(self.settings)
+
+            if self.autostart_checkbox.isChecked():
+                AutoStart.enable()
+            else:
+                AutoStart.disable()
 
             if self.state == AppState.RUNNING and self.scheduler:
                 self.scheduler.stop()
