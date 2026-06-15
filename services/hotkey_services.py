@@ -1,6 +1,6 @@
+import threading
 from pynput import keyboard
-from PySide6.QtCore import QObject, Signal, QThread
-import time
+from PySide6.QtCore import QObject, Signal, Qt
 
 
 class HotkeyWorker(QObject):
@@ -10,9 +10,13 @@ class HotkeyWorker(QObject):
         super().__init__()
         self.hotkey_str = hotkey_str
         self.listener = None
-        self._running = True
+        self._thread = None
 
-    def run(self):
+    def start(self):
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def _run(self):
         try:
             pynput_hotkey = self._format_hotkey(self.hotkey_str)
             self.listener = keyboard.GlobalHotKeys({
@@ -20,24 +24,24 @@ class HotkeyWorker(QObject):
             })
             self.listener.start()
             print(f"[Hotkey] Слушатель запущен: {pynput_hotkey}")
-
-            while self._running and getattr(self.listener, 'running', True):
-                time.sleep(0.1)
-
+            self.listener.join()  # блокируем поток, пока listener жив
         except Exception as e:
             print(f"[Hotkey] Ошибка запуска: {e}")
 
     def on_activate(self):
+        # вызывается из потока pynput — сигнал уйдёт в главный поток через очередь
         self.triggered.emit()
 
     def stop(self):
-        self._running = False
         if self.listener:
             try:
                 self.listener.stop()
-            except:
+            except Exception:
                 pass
             self.listener = None
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=1.0)
+        self._thread = None
 
     def _format_hotkey(self, hotkey_str: str) -> str:
         parts = [p.strip().lower() for p in hotkey_str.split('+')]
@@ -55,9 +59,9 @@ class HotkeyWorker(QObject):
 class HotkeyService(QObject):
     def __init__(self):
         super().__init__()
-        self.thread = None
         self.worker = None
         self.current_hotkey = None
+        self._callback = None
 
     def register(self, hotkey: str, callback):
         if not hotkey or not hotkey.strip():
@@ -65,29 +69,30 @@ class HotkeyService(QObject):
             return
 
         hotkey = hotkey.strip()
-        if self.current_hotkey == hotkey and self.thread and self.thread.isRunning():
+
+        # если уже зарегистрирован этот же хоткей и worker жив — ничего не делаем
+        if self.current_hotkey == hotkey and self.worker and self.worker.listener:
             return
 
         self.unregister()
 
         self.current_hotkey = hotkey
+        self._callback = callback
         self.worker = HotkeyWorker(hotkey)
-        self.thread = QThread()
-
-        self.worker.moveToThread(self.thread)
-        self.thread.started.connect(self.worker.run)
-        self.worker.triggered.connect(callback)
-
-        self.thread.start()
+        # ЯВНО указываем QueuedConnection — сигнал из потока pynput
+        # гарантированно придёт в главный поток через event loop
+        self.worker.triggered.connect(callback, Qt.ConnectionType.QueuedConnection)
+        self.worker.start()
         print(f"[HotkeyService] Зарегистрирован: {hotkey}")
 
     def unregister(self):
         if self.worker:
             self.worker.stop()
-        if self.thread and self.thread.isRunning():
-            self.thread.quit()
-            self.thread.wait(1000)
-
-        self.thread = None
-        self.worker = None
+            if self._callback:
+                try:
+                    self.worker.triggered.disconnect(self._callback)
+                except Exception:
+                    pass
+            self.worker = None
         self.current_hotkey = None
+        self._callback = None

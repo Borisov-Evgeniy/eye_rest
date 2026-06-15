@@ -21,7 +21,7 @@ class CircularProgressBar(QWidget):
             background: transparent;
             text-shadow: 0px 0px 20px rgba(45, 212, 191, 0.6);
         """)
-        self.timer_label.setText("20:00")
+        self.timer_label.setText("--:--")
 
     def setValue(self, value):
         self._value = max(0, min(100, value))
@@ -75,6 +75,7 @@ class BreakWindow(QMainWindow):
 
         self._build_ui()
         self._apply_styles()
+        print(f"[BreakWindow] Создан. Хоткей: {hotkey_hint}")
         self._center_on_screen()
 
         self.timer = QTimer(self)
@@ -107,7 +108,7 @@ class BreakWindow(QMainWindow):
 
         circle_layout = QHBoxLayout()
         circle_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        circle_layout.addStretch(4)
+        circle_layout.addStretch(2)
         self.circular_progress = CircularProgressBar()
         circle_layout.addWidget(self.circular_progress)
         circle_layout.addStretch(2)
@@ -200,7 +201,7 @@ class BreakWindow(QMainWindow):
     def force_close(self):
         if self._is_closing:
             return
-
+        print("[BreakWindow] Закрытие по хоткею или таймеру")
         self._is_closing = True
         self.timer.stop()
 

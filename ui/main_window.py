@@ -1,9 +1,8 @@
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton, QLineEdit, QFrame, QMessageBox, QCheckBox
-)
+    QLabel, QPushButton, QLineEdit, QFrame, QMessageBox, QCheckBox,QKeySequenceEdit)
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QKeySequence
 
 from core.scheduler import Scheduler
 from core.app_state import AppState
@@ -19,7 +18,7 @@ class MainWindow(QMainWindow):
         self.settings = SettingsService.load()
 
         self.setWindowTitle("Eye Rest")
-        self.setFixedSize(420, 580)
+        self.setFixedSize(580, 700)
 
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -92,7 +91,7 @@ class MainWindow(QMainWindow):
         card.setObjectName("settingsCard")
         layout = QVBoxLayout(card)
         layout.setContentsMargins(24, 20, 24, 20)
-        layout.setSpacing(12)
+        layout.setSpacing(8)
 
         label1 = QLabel("Интервал работы (мин)")
         label1.setObjectName("inputLabel")
@@ -108,9 +107,10 @@ class MainWindow(QMainWindow):
 
         label3 = QLabel("Горячая клавиша")
         label3.setObjectName("inputLabel")
-        self.hotkey_entry = QLineEdit()
-        self.hotkey_entry.setObjectName("inputField")
-        self.hotkey_entry.setText(self.settings.hotkey)
+        self.hotkey_entry = QKeySequenceEdit()
+        self.hotkey_entry.setObjectName("hotkeyField")
+        self.hotkey_entry.setMaximumSequenceLength(1)
+        self.hotkey_entry.setKeySequence(QKeySequence(self.settings.hotkey))
 
         self.autostart_checkbox = QCheckBox("Запускать при старте системы")
         self.autostart_checkbox.setObjectName("web3Checkbox")
@@ -122,10 +122,13 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(label1)
         layout.addWidget(self.interval_entry)
+        layout.addSpacing(4)
         layout.addWidget(label2)
         layout.addWidget(self.break_entry)
+        layout.addSpacing(4)
         layout.addWidget(label3)
         layout.addWidget(self.hotkey_entry)
+        layout.addSpacing(4)
         layout.addWidget(self.autostart_checkbox)
         layout.addWidget(save_btn)
 
@@ -209,6 +212,18 @@ class MainWindow(QMainWindow):
                 padding: 10px;
                 font-size: 14px;
                 min-height: 14px;
+            }
+            QKeySequenceEdit#hotkeyField {
+                background-color: rgba(15, 23, 42, 0.8);
+                color: #F8FAFC;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+                padding: 10px;
+                font-size: 14px;
+                min-height: 14px;
+            }
+            QKeySequenceEdit#hotkeyField:focus {
+                border: 1px solid #8B5CF6;
             }
             QLineEdit#inputField:focus {
                 border: 1px solid #8B5CF6;
@@ -427,7 +442,7 @@ class MainWindow(QMainWindow):
         try:
             self.settings.interval_minutes = int(self.interval_entry.text())
             self.settings.break_time = int(self.break_entry.text())
-            self.settings.hotkey = self.hotkey_entry.text().strip()
+            self.settings.hotkey = self.hotkey_entry.keySequence().toString(QKeySequence.SequenceFormat.PortableText)
 
             SettingsService.save(self.settings)
 
