@@ -428,14 +428,12 @@ class MainWindow(QMainWindow):
         self.scheduler = Scheduler(
             interval_minutes=self.settings.interval_minutes,
             on_break=self.show_break,
-            on_countdown_update=self.update_countdown
-        )
+            on_countdown_update=self.update_countdown)
         self.scheduler.start()
 
         self.set_state(AppState.RUNNING)
 
     def close_break(self):
-        """Вызывается по хоткею"""
         if self.break_window and not self.break_window._is_closing:
             self.break_window.force_close()
 

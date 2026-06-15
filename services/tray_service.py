@@ -4,10 +4,15 @@ from PIL import Image, ImageDraw
 from PySide6.QtCore import QObject, Signal
 
 def create_image():
-    image = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(image)
-    draw.ellipse((10, 10, 54, 54), fill="red")
-    return image
+    from pathlib import Path
+    icon_path = Path(__file__).parent.parent / "icon.png"
+    if icon_path.exists():
+        return Image.open(icon_path)
+    else:
+        image = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(image)
+        draw.ellipse([16, 16, 48, 48], fill='#10B981')
+        return image
 
 class TrayService(QObject):
     exit_requested = Signal()

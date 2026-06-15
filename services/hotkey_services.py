@@ -24,12 +24,11 @@ class HotkeyWorker(QObject):
             })
             self.listener.start()
             print(f"[Hotkey] Слушатель запущен: {pynput_hotkey}")
-            self.listener.join()  # блокируем поток, пока listener жив
+            self.listener.join()
         except Exception as e:
             print(f"[Hotkey] Ошибка запуска: {e}")
 
     def on_activate(self):
-        # вызывается из потока pynput — сигнал уйдёт в главный поток через очередь
         self.triggered.emit()
 
     def stop(self):
@@ -70,7 +69,6 @@ class HotkeyService(QObject):
 
         hotkey = hotkey.strip()
 
-        # если уже зарегистрирован этот же хоткей и worker жив — ничего не делаем
         if self.current_hotkey == hotkey and self.worker and self.worker.listener:
             return
 
@@ -79,8 +77,6 @@ class HotkeyService(QObject):
         self.current_hotkey = hotkey
         self._callback = callback
         self.worker = HotkeyWorker(hotkey)
-        # ЯВНО указываем QueuedConnection — сигнал из потока pynput
-        # гарантированно придёт в главный поток через event loop
         self.worker.triggered.connect(callback, Qt.ConnectionType.QueuedConnection)
         self.worker.start()
         print(f"[HotkeyService] Зарегистрирован: {hotkey}")
