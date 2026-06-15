@@ -220,7 +220,10 @@ class BreakWindow(QMainWindow):
         super().keyPressEvent(event)
 
     def closeEvent(self, event):
-        if self._is_closing or self.seconds == 0:
-            event.accept()
-        else:
-            event.ignore()
+        if not self._is_closing:
+            print("[BreakWindow] Принудительное закрытие при выходе из приложения")
+            self._is_closing = True
+            self.timer.stop()
+            if self.on_finish:
+                self.on_finish()
+        event.accept()

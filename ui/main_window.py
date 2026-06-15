@@ -1,6 +1,8 @@
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton, QLineEdit, QFrame, QMessageBox, QCheckBox,QKeySequenceEdit)
+    QLabel, QPushButton, QLineEdit, QFrame, QMessageBox,
+    QCheckBox, QKeySequenceEdit)
+
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QFont, QKeySequence
 
@@ -107,11 +109,11 @@ class MainWindow(QMainWindow):
 
         label3 = QLabel("Горячая клавиша")
         label3.setObjectName("inputLabel")
+
         self.hotkey_entry = QKeySequenceEdit()
         self.hotkey_entry.setObjectName("hotkeyField")
         self.hotkey_entry.setMaximumSequenceLength(1)
         self.hotkey_entry.setKeySequence(QKeySequence(self.settings.hotkey))
-
         self.autostart_checkbox = QCheckBox("Запускать при старте системы")
         self.autostart_checkbox.setObjectName("web3Checkbox")
         self.autostart_checkbox.setChecked(AutoStart.is_enabled())
@@ -177,8 +179,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.pause_btn)
         return footer
 
-    def _apply_styles(self):
-        self.setStyleSheet("""
+    def _base_stylesheet(self) -> str:
+        return """
             QMainWindow {
                 background-color: rgba(15, 23, 42, 0.98);
                 border: 1px solid rgba(139, 92, 246, 0.3);
@@ -213,6 +215,9 @@ class MainWindow(QMainWindow):
                 font-size: 14px;
                 min-height: 14px;
             }
+            QLineEdit#inputField:focus {
+                border: 1px solid #8B5CF6;
+            }
             QKeySequenceEdit#hotkeyField {
                 background-color: rgba(15, 23, 42, 0.8);
                 color: #F8FAFC;
@@ -223,9 +228,6 @@ class MainWindow(QMainWindow):
                 min-height: 14px;
             }
             QKeySequenceEdit#hotkeyField:focus {
-                border: 1px solid #8B5CF6;
-            }
-            QLineEdit#inputField:focus {
                 border: 1px solid #8B5CF6;
             }
             QCheckBox#web3Checkbox {
@@ -326,7 +328,10 @@ class MainWindow(QMainWindow):
                 background-color: rgba(239, 68, 68, 0.2);
                 color: #EF4444;
             }
-        """)
+        """
+
+    def _apply_styles(self):
+        self.setStyleSheet(self._base_stylesheet())
 
     def hide_window(self):
         self.hide()
@@ -354,7 +359,6 @@ class MainWindow(QMainWindow):
                 self.scheduler.start()
             else:
                 self.scheduler.resume()
-
             self.hotkeys.register(self.settings.hotkey, self.close_break)
 
         elif state == AppState.PAUSED:
@@ -375,20 +379,29 @@ class MainWindow(QMainWindow):
         self.render_state()
 
     def render_state(self):
+        self.setStyleSheet(self._base_stylesheet())
+
         if self.state == AppState.RUNNING:
             self.status_label.setText("РАБОТАЕТ")
             self.status_label.setStyleSheet("color: #10B981;")
             self.pause_btn.setText("⏸ Пауза")
+            self.setWindowOpacity(0.6)
+
         elif self.state == AppState.PAUSED:
             self.status_label.setText("ПАУЗА")
             self.status_label.setStyleSheet("color: #F59E0B;")
             self.pause_btn.setText("▶ Продолжить")
+            self.setWindowOpacity(1.0)
+
         elif self.state == AppState.STOPPED:
             self.status_label.setText("ОСТАНОВЛЕНО")
             self.status_label.setStyleSheet("color: #94A3B8;")
+            self.setWindowOpacity(1.0)
+
         elif self.state == AppState.BREAK:
             self.status_label.setText("ПЕРЕРЫВ")
             self.status_label.setStyleSheet("color: #8B5CF6;")
+            self.setWindowOpacity(1.0)
 
     def show_break(self):
         if self.state != AppState.RUNNING:
@@ -438,6 +451,17 @@ class MainWindow(QMainWindow):
         else:
             self.set_state(AppState.PAUSED)
 
+    def clean_exit(self):
+        print("[MainWindow] Начинаем завершение...")
+        self.set_state(AppState.STOPPED)
+        if self.break_window:
+            self.break_window.force_close()
+            self.break_window = None
+        self.hotkeys.unregister()
+        self.tray.stop()
+        from PySide6.QtWidgets import QApplication
+        QApplication.quit()
+
     def save_settings(self):
         try:
             self.settings.interval_minutes = int(self.interval_entry.text())
@@ -459,6 +483,7 @@ class MainWindow(QMainWindow):
                     on_countdown_update=self.update_countdown
                 )
                 self.scheduler.start()
+                self.hotkeys.register(self.settings.hotkey, self.close_break)
 
             QMessageBox.information(self, "Успешно", "Настройки сохранены!")
 
