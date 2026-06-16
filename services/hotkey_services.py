@@ -1,6 +1,6 @@
-import threading
-from pynput import keyboard
-from PySide6.QtCore import QObject, Signal, Qt
+from PySide6.QtCore import QObject, Signal, QThread, QTimer
+import keyboard
+import time
 
 
 class HotkeyWorker(QObject):
@@ -9,58 +9,62 @@ class HotkeyWorker(QObject):
     def __init__(self, hotkey_str: str):
         super().__init__()
         self.hotkey_str = hotkey_str
-        self.listener = None
-        self._thread = None
+        self._running = True
+        self._hook = None
+        self._re_register_timer = None
 
-    def start(self):
-        self._thread = threading.Thread(target=self._run, daemon=True)
-        self._thread.start()
-
-    def _run(self):
+    def run(self):
         try:
-            pynput_hotkey = self._format_hotkey(self.hotkey_str)
-            self.listener = keyboard.GlobalHotKeys({
-                pynput_hotkey: self.on_activate
-            })
-            self.listener.start()
-            print(f"[Hotkey] Слушатель запущен: {pynput_hotkey}")
-            self.listener.join()
-        except Exception as e:
-            print(f"[Hotkey] Ошибка запуска: {e}")
+            self._register_hotkey()
 
-    def on_activate(self):
-        self.triggered.emit()
+            # Таймер для периодической перерегистрации (защита от сна)
+            self._re_register_timer = QTimer()
+            self._re_register_timer.timeout.connect(self._register_hotkey)
+            self._re_register_timer.start(45000)  # каждые 45 секунд
+
+            while self._running:
+                time.sleep(0.1)
+
+        except Exception as e:
+            print(f"[Hotkey] Критическая ошибка: {e}")
+
+    def _register_hotkey(self):
+        """Безопасная (пере)регистрация"""
+        try:
+            if self._hook is not None:
+                keyboard.remove_hotkey(self._hook)
+
+            def on_press():
+                print(f"[Hotkey] 🔥 СРАБОТАЛ: {self.hotkey_str}")
+                self.triggered.emit()
+
+            self._hook = keyboard.add_hotkey(
+                self.hotkey_str.lower(),
+                on_press,
+                suppress=False
+            )
+            print(f"[Hotkey] ✓ Пере/зарегистрирован: {self.hotkey_str}")
+        except Exception as e:
+            print(f"[Hotkey] Ошибка регистрации: {e}")
 
     def stop(self):
-        if self.listener:
+        self._running = False
+        if self._re_register_timer:
+            self._re_register_timer.stop()
+        if self._hook:
             try:
-                self.listener.stop()
-            except Exception:
+                keyboard.remove_hotkey(self._hook)
+            except:
                 pass
-            self.listener = None
-        if self._thread and self._thread.is_alive():
-            self._thread.join(timeout=1.0)
-        self._thread = None
-
-    def _format_hotkey(self, hotkey_str: str) -> str:
-        parts = [p.strip().lower() for p in hotkey_str.split('+')]
-        mapping = {
-            'ctrl': '<ctrl>', 'control': '<ctrl>',
-            'alt': '<alt>',
-            'shift': '<shift>',
-            'win': '<win>', 'super': '<win>',
-            'cmd': '<cmd>', 'command': '<cmd>',
-        }
-        formatted = [mapping.get(p, p) for p in parts]
-        return '+'.join(formatted)
+            self._hook = None
 
 
 class HotkeyService(QObject):
     def __init__(self):
         super().__init__()
+        self.thread = None
         self.worker = None
         self.current_hotkey = None
-        self._callback = None
 
     def register(self, hotkey: str, callback):
         if not hotkey or not hotkey.strip():
@@ -68,27 +72,29 @@ class HotkeyService(QObject):
             return
 
         hotkey = hotkey.strip()
-
-        if self.current_hotkey == hotkey and self.worker and self.worker.listener:
+        if self.current_hotkey == hotkey and self.thread and self.thread.isRunning():
             return
 
         self.unregister()
 
         self.current_hotkey = hotkey
-        self._callback = callback
         self.worker = HotkeyWorker(hotkey)
-        self.worker.triggered.connect(callback, Qt.ConnectionType.QueuedConnection)
-        self.worker.start()
-        print(f"[HotkeyService] Зарегистрирован: {hotkey}")
+        self.thread = QThread()
+
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.triggered.connect(callback)
+
+        self.thread.start()
+        print(f"[HotkeyService] Запущена регистрация: {hotkey}")
 
     def unregister(self):
         if self.worker:
             self.worker.stop()
-            if self._callback:
-                try:
-                    self.worker.triggered.disconnect(self._callback)
-                except Exception:
-                    pass
-            self.worker = None
+        if self.thread and self.thread.isRunning():
+            self.thread.quit()
+            self.thread.wait(1200)
+
+        self.thread = None
+        self.worker = None
         self.current_hotkey = None
-        self._callback = None

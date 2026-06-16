@@ -1,10 +1,12 @@
+from pathlib import Path
+
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QLineEdit, QFrame, QMessageBox,
     QCheckBox, QKeySequenceEdit)
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QFont, QKeySequence
+from PySide6.QtGui import QFont, QKeySequence, QIcon
 
 from core.scheduler import Scheduler
 from core.app_state import AppState
@@ -21,7 +23,6 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("Eye Rest")
         self.setFixedSize(580, 700)
-
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
@@ -374,6 +375,7 @@ class MainWindow(QMainWindow):
             self.hotkeys.unregister()
 
         elif state == AppState.BREAK:
+            self.hotkeys.unregister()
             self.hotkeys.register(self.settings.hotkey, self.close_break)
 
         self.render_state()
